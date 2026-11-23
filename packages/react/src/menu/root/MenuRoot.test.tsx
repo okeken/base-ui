@@ -1910,6 +1910,82 @@ describe('<Menu.Root />', () => {
           expect(screen.queryByTestId('menu')).toBe(null);
         });
       });
+
+      describe.skipIf(isJSDOM)('during the exit animation', () => {
+        beforeEach(() => {
+          globalThis.BASE_UI_ANIMATIONS_DISABLED = false;
+        });
+
+        it.each([
+          {
+            name: 'Tab after Escape',
+            closeKey: '[Escape]',
+            shift: false,
+            expected: 'next element',
+          },
+          {
+            name: 'Tab after selecting an item',
+            closeKey: '[Enter]',
+            shift: false,
+            expected: 'next element',
+          },
+          {
+            name: 'Shift+Tab after Escape',
+            closeKey: '[Escape]',
+            shift: true,
+            expected: 'trigger',
+          },
+        ] as const)(
+          '$name moves focus to the $expected before the menu unmounts',
+          async ({ closeKey, shift, expected }) => {
+            const style = `
+              .popup {
+                transition: opacity 500ms;
+              }
+
+              .popup[data-ending-style] {
+                opacity: 0;
+              }
+            `;
+
+            const { user } = await render(
+              <div>
+                {/* eslint-disable-next-line react/no-danger */}
+                <style dangerouslySetInnerHTML={{ __html: style }} />
+                <input data-testid="before" />
+                <TestMenu popupProps={{ className: 'popup' }} />
+                <input data-testid="after" />
+              </div>,
+            );
+
+            const trigger = screen.getByRole('button', { name: 'Toggle' });
+            await act(async () => {
+              trigger.focus();
+            });
+            await user.keyboard('[Enter]');
+
+            const item = await screen.findByTestId('item-1');
+            await waitFor(() => {
+              expect(item).toHaveFocus();
+            });
+
+            await user.keyboard(closeKey);
+
+            expect(screen.getByTestId('menu')).toHaveAttribute('data-ending-style');
+            expect(item).toHaveFocus();
+
+            await user.tab({ shift });
+
+            const destination = expected === 'trigger' ? trigger : screen.getByTestId('after');
+            expect(screen.getByTestId('menu')).toHaveAttribute('data-ending-style');
+            expect(destination).toHaveFocus();
+            await waitFor(() => {
+              expect(screen.queryByTestId('menu')).toBe(null);
+            });
+            expect(destination).toHaveFocus();
+          },
+        );
+      });
     });
 
     describe('prop: closeParentOnEsc', () => {

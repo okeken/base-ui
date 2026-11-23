@@ -23,6 +23,7 @@ import {
   isTabbable,
   getNextTabbable,
   getPreviousTabbable,
+  getTabbableNearElement,
 } from './tabbable';
 import type { FocusableElement } from './tabbable';
 import { getNodeAncestors, getNodeChildren } from '../tree/nodes';
@@ -1066,7 +1067,11 @@ export function FloatingFocusManager(props: FloatingFocusManagerProps): React.JS
                 prevTabbable?.focus();
               } else {
                 (
-                  resolveRef(nextFocusableElement) ?? portalContext.afterOutsideRef.current
+                  resolveRef(nextFocusableElement) ??
+                  portalContext.afterOutsideRef.current ??
+                  // Both targets above unmount once the popup closes, so during an exit
+                  // animation move past the reference instead of stranding focus here.
+                  getTabbableNearElement(domReference, 1, portalContext.portalNode)
                 )?.focus();
               }
             }

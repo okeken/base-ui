@@ -2092,6 +2092,51 @@ describe('FloatingFocusManager', () => {
         },
       );
 
+      test('moves focus past the reference when tabbing out after closing but before unmounting', async () => {
+        function App(props: { open: boolean; mounted: boolean }) {
+          const { refs, context } = useFloating({ open: props.open });
+
+          return (
+            <>
+              <span tabIndex={0} data-testid="first" />
+              <button data-testid="reference" ref={refs.setReference} />
+              <FloatingPortal>
+                {props.mounted && (
+                  <FloatingFocusManager store={context.rootStore} modal={false}>
+                    <div data-testid="floating" ref={refs.setFloating}>
+                      <span tabIndex={0} data-testid="inside" />
+                    </div>
+                  </FloatingFocusManager>
+                )}
+              </FloatingPortal>
+              <span tabIndex={0} data-testid="last" />
+            </>
+          );
+        }
+
+        const { rerender } = render(<App open={false} mounted={false} />);
+        rerender(<App open mounted />);
+        await flushMicrotasks();
+
+        expect(screen.getByTestId('inside')).toHaveFocus();
+
+        // Closed but still mounted, as during an exit animation: the outside guards are gone.
+        rerender(<App open={false} mounted />);
+        await flushMicrotasks();
+
+        expect(screen.getByTestId('inside')).toHaveFocus();
+
+        await userEvent.tab();
+
+        expect(screen.getByTestId('last')).toHaveFocus();
+
+        rerender(<App open={false} mounted={false} />);
+        await flushMicrotasks();
+
+        expect(screen.queryByTestId('floating')).toBe(null);
+        expect(screen.getByTestId('last')).toHaveFocus();
+      });
+
       test('does not mark reference siblings due to outside focus guards', async () => {
         function App() {
           const [open, setOpen] = React.useState(false);

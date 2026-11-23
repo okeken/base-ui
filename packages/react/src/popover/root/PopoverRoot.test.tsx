@@ -1591,6 +1591,49 @@ describe('<Popover.Root />', () => {
           });
           expect(screen.getByTestId('focus-target')).toHaveFocus();
         });
+
+        it('moves focus to the element following the trigger when tabbing forward from inside the closing popup', async () => {
+          const style = `
+            .popup {
+              transition: opacity 500ms;
+            }
+
+            .popup[data-ending-style] {
+              opacity: 0;
+            }
+          `;
+
+          const { user } = await render(
+            <div>
+              {/* eslint-disable-next-line react/no-danger */}
+              <style dangerouslySetInnerHTML={{ __html: style }} />
+              <TestPopover
+                afterTrigger={<input data-testid="focus-target" />}
+                popupProps={{ className: 'popup', children: <input data-testid="input-inside" /> }}
+              />
+            </div>,
+          );
+
+          await user.click(screen.getByTestId('trigger'));
+          const inputInside = await screen.findByTestId('input-inside');
+          await waitFor(() => {
+            expect(inputInside).toHaveFocus();
+          });
+
+          await user.keyboard('[Escape]');
+
+          expect(screen.getByTestId('popover-popup')).toHaveAttribute('data-ending-style');
+          expect(inputInside).toHaveFocus();
+
+          await user.tab();
+
+          expect(screen.getByTestId('popover-popup')).toHaveAttribute('data-ending-style');
+          expect(screen.getByTestId('focus-target')).toHaveFocus();
+          await waitFor(() => {
+            expect(screen.queryByTestId('popover-popup')).toBe(null);
+          });
+          expect(screen.getByTestId('focus-target')).toHaveFocus();
+        });
       });
 
       // The multiple-triggers variant has a second tabbable trigger.
